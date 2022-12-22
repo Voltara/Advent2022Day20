@@ -45,12 +45,50 @@ int64_t solve(const std::vector<short> &input, int rounds, int64_t key) {
 		offsets.push_back(offset);
 	}
 
+	std::vector<short> hint = indices;
+	int search_cost = 0;
+
 	for (int round = 0; round < rounds; round++) {
 		for (int i = 0; i < len; i++) {
-			auto it = std::find(indices.begin(), indices.end(), i);
-			indices.erase(it, it + 1);
-			int pos = (it + offsets[i] - indices.begin()) % mod;
-			indices.insert(indices.begin() + pos, i);
+			auto step = offsets[i];
+
+			// periodically rebuild hint table to keep search cost under control
+			if (search_cost > len/2) {
+				search_cost = 0;
+				for (int i = 0; i < len; i++) {
+					hint[indices[i]] = i;
+				}
+			}
+
+			// find 'i' in the indices table
+			int from = hint[i];
+			if (indices[from] != i) {
+				int left = from, right = from;
+				for (;;) {
+					search_cost++;
+					if (--left >= 0 && indices[left] == i) {
+						from = left;
+						break;
+					}
+					if (++right < len && indices[right] == i) {
+						from = right;
+						break;
+					}
+				}
+			}
+
+			// move 'i' to its destination
+			int to = from + step;
+			if (to >= mod) to -= mod;
+
+			if (from < to) {
+				std::move(&indices[from + 1], &indices[to + 1], &indices[from]);
+			} else if (to < from) {
+				std::move_backward(&indices[to], &indices[from], &indices[from + 1]);
+			}
+			indices[to] = i;
+
+			hint[i] = to;
 		}
 	}
 
